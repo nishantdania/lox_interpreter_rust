@@ -1,87 +1,15 @@
+use crate::error::LoxError;
+use crate::literal::Literal;
+use crate::token::Token;
+use crate::token_type::TokenType;
+
 pub struct Lexer {
     source: String,
     tokens: Vec<Token>,
     start: usize,
     current: usize,
     line: u32,
-}
-
-#[derive(Clone, Debug)]
-pub enum Literal {
-    String(String),
-    Number(f32),
-    None,
-}
-
-use std::fmt;
-
-#[derive(Clone)]
-pub struct Token {
-    pub token_type: TokenType,
-    pub lexeme: String,
-    pub literal: Literal,
-    pub line_number: u32,
-}
-
-impl fmt::Display for Token {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Token")
-            .field("type", &self.token_type)
-            .field("lexeme", &self.lexeme)
-            .field("literal", &self.literal)
-            .finish()
-    }
-}
-
-#[derive(Clone, Debug)]
-pub enum TokenType {
-    // One character tokens
-    LeftParen,
-    RightParen,
-    LeftBrace,
-    RightBrace,
-    Comma,
-    Dot,
-    Minus,
-    Plus,
-    SemiColon,
-    Slash,
-    Star,
-
-    // One or two character tokens
-    Bang,
-    BangEqual,
-    Equal,
-    EqualEqual,
-    Greater,
-    GreaterEqual,
-    Less,
-    LessEqual,
-
-    // Literals
-    Identifier,
-    String,
-    Number,
-
-    //Keywords
-    And,
-    Class,
-    Else,
-    False,
-    Fun,
-    For,
-    If,
-    Nil,
-    Or,
-    Print,
-    Return,
-    Super,
-    This,
-    True,
-    Var,
-    While,
-
-    EOF,
+    pub errors: Vec<LoxError>,
 }
 
 impl Lexer {
@@ -92,6 +20,7 @@ impl Lexer {
             start: 0,
             current: 0,
             line: 1,
+            errors: Vec::new(),
         }
     }
 
@@ -100,10 +29,8 @@ impl Lexer {
             self.start = self.current;
             self.scan_token();
         }
-
         self.add_token(TokenType::EOF);
-
-        return self.tokens.to_vec();
+        self.tokens.to_vec()
     }
 
     fn is_at_end(&self) -> bool {
@@ -152,6 +79,8 @@ impl Lexer {
                 false => self.add_token(TokenType::Slash),
             },
 
+            ' ' | '\r' | '\t' => (),
+
             '\n' => self.line = self.line + 1,
 
             '"' => self.string(),
@@ -161,6 +90,11 @@ impl Lexer {
                     self.number();
                 } else if character.is_alphabetic() {
                     self.identifier();
+                } else {
+                    self.errors.push(LoxError {
+                        line_number: self.line,
+                        reason: "LexerError: Unexpected character.".to_string(),
+                    })
                 }
             }
         }
@@ -174,10 +108,6 @@ impl Lexer {
             .expect("Nth character in source");
         self.current = self.current + 1;
         c
-    }
-
-    fn add_token(&mut self, token_type: TokenType) {
-        self.add_token_with_literal(token_type, Literal::None);
     }
 
     fn match_next(&mut self, expected: char) -> bool {
@@ -220,6 +150,33 @@ impl Lexer {
             .expect("Nth char in source")
     }
 
+    fn add_token(&mut self, token_type: TokenType) {
+        self.add_token_with_literal(token_type, Literal::None);
+    }
+
+    fn add_token_with_literal(&mut self, token_type: TokenType, literal: Literal) {
+        match token_type {
+            TokenType::EOF => {
+                self.tokens.push(Token {
+                    lexeme: "".to_string(),
+                    line_number: self.line,
+                    literal,
+                    token_type: TokenType::EOF,
+                });
+            }
+            _ => {
+                let lexeme = &self.source[self.start..self.current];
+
+                self.tokens.push(Token {
+                    token_type,
+                    lexeme: lexeme.to_string(),
+                    line_number: self.line,
+                    literal,
+                })
+            }
+        }
+    }
+
     fn string(&mut self) {
         while self.peek() != '"' && !self.is_at_end() {
             if self.peek() == '\n' {
@@ -229,6 +186,10 @@ impl Lexer {
         }
 
         if self.is_at_end() {
+            self.errors.push(LoxError {
+                line_number: self.line - 1,
+                reason: "Unterminated string.".to_string(),
+            });
             return;
         }
 
@@ -283,28 +244,5 @@ impl Lexer {
         };
 
         self.add_token(token_type);
-    }
-
-    fn add_token_with_literal(&mut self, token_type: TokenType, literal: Literal) {
-        match token_type {
-            TokenType::EOF => {
-                self.tokens.push(Token {
-                    lexeme: "".to_string(),
-                    line_number: self.line,
-                    literal,
-                    token_type: TokenType::EOF,
-                });
-            }
-            _ => {
-                let lexeme = &self.source[self.start..self.current];
-
-                self.tokens.push(Token {
-                    token_type,
-                    lexeme: lexeme.to_string(),
-                    line_number: self.line,
-                    literal,
-                })
-            }
-        }
     }
 }

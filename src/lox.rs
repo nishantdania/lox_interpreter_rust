@@ -52,8 +52,13 @@ fn print_repl_welcome_message() {
 fn run_lox(source: String) {
     let mut lexer = Lexer::new(source);
     let tokens = lexer.scan_tokens();
+    let lexer_errors = lexer.errors;
 
     for token in tokens {
         println!("{token}");
+    }
+
+    for error in lexer_errors {
+        println!("{error}");
     }
 }
