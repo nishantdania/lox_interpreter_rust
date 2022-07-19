@@ -3,6 +3,7 @@ use std::io;
 use std::io::Write;
 
 use crate::lexer::Lexer;
+use crate::parser::Parser;
 
 pub fn run(args: &Vec<String>) {
     if args.len() > 2 {
@@ -54,9 +55,14 @@ fn run_lox(source: String) {
     let tokens = lexer.scan_tokens();
     let lexer_errors = lexer.errors;
 
-    for token in tokens {
-        println!("{token}");
-    }
+    let mut parser = Parser::new(&tokens);
+    let expression = parser.parse();
+
+    println!("{:?}", expression);
+
+    // for token in tokens {
+    //     println!("{token}");
+    // }
 
     for error in lexer_errors {
         println!("{error}");
