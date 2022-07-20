@@ -4,6 +4,7 @@ use std::io::Write;
 
 use crate::lexer::Lexer;
 use crate::parser::Parser;
+use crate::interpreter::Interpreter;
 
 pub fn run(args: &Vec<String>) {
     if args.len() > 2 {
@@ -57,6 +58,8 @@ fn run_lox(source: String) {
 
     let mut parser = Parser::new(&tokens);
     let expression = parser.parse();
+    let interpreter = Interpreter::new();
+    interpreter.interpret(&expression);
 
     println!("{:?}", expression);
 
